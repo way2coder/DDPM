@@ -5,7 +5,7 @@ def main(model_config = None):
     modelConfig = {
         "state": "train", # or eval
         "epoch": 200,
-        "batch_size": 80,
+        "batch_size": 3,
         "T": 1000,
         "channel": 128,
         "channel_mult": [1, 2, 3, 4],
@@ -14,7 +14,7 @@ def main(model_config = None):
         "dropout": 0.15,
         "lr": 1e-4,
         "multiplier": 2.,
-        "beta_1": 1e-4,
+        "beta_1": 1e-4,  
         "beta_T": 0.02,
         "img_size": 32,
         "grad_clip": 1.,

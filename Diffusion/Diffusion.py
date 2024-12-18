@@ -25,8 +25,8 @@ class GaussianDiffusionTrainer(nn.Module):
 
         self.register_buffer(
             'betas', torch.linspace(beta_1, beta_T, T).double())
-        alphas = 1. - self.betas
-        alphas_bar = torch.cumprod(alphas, dim=0)
+        alphas = 1. - self.betas  
+        alphas_bar = torch.cumprod(alphas, dim=0)  # [x1, x1*x2, x1*x2*x3, ...] 
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
         self.register_buffer(
@@ -38,12 +38,13 @@ class GaussianDiffusionTrainer(nn.Module):
         """
         Algorithm 1.
         """
+        # t shape : [batch_size] simple from Unifomr distribution [0, T]
         t = torch.randint(self.T, size=(x_0.shape[0], ), device=x_0.device)
-        noise = torch.randn_like(x_0)
+        noise = torch.randn_like(x_0)  # noise shape: same as x_0 [batch_size, 3, 32, 32], nomal distribution  with mean 0 and variance 1.
         x_t = (
             extract(self.sqrt_alphas_bar, t, x_0.shape) * x_0 +
-            extract(self.sqrt_one_minus_alphas_bar, t, x_0.shape) * noise)
-        loss = F.mse_loss(self.model(x_t, t), noise, reduction='none')
+            extract(self.sqrt_one_minus_alphas_bar, t, x_0.shape) * noise) # this step does not need neural network, it is all about hyparameters 
+        loss = F.mse_loss(self.model(x_t, t), noise, reduction='none')  # loss between the model prediction and noise
         return loss
 
 

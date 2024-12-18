@@ -12,8 +12,32 @@ class Swish(nn.Module):
         return x * torch.sigmoid(x)
 
 
+'''
+1. 时间嵌入的目的：
+
+时间嵌入是在扩散模型（如DDPM）中用来表示噪声程度或时间步的一种方法。在扩散过程中，图像会逐步被加噪，时间步t表示了这个过程中的特定阶段。时间嵌入将这个标量t转换为一个高维向量，使网络能更好地理解和利用时间信息。
+
+2. 时间嵌入的实现：
+
+您提供的TimeEmbedding类实现了一种特殊的时间嵌入方法，类似于Transformer中的位置编码：
+a) 使用正弦和余弦函数创建初始嵌入
+b) 将这个嵌入传递through一个小型神经网络（两个线性层和一个Swish激活函数）
+c) 这样生成的嵌入更容易被主网络学习和利用
+
+Swish 的特性：
+a) 平滑性：Swish 是一个平滑函数，这意味着它在整个定义域内都是可微的。这有助于梯度的稳定传播。
+b) 非单调性：与 ReLU 不同，Swish 在负值区域不是恒为零的，这允许负值信息的有限传播。
+c) 有界下方，无界上方：这个特性类似于 ReLU，但 Swish 在负值区域有一个平滑的过渡。
+d) 自门控（Self-gating）：x 乘以 sigmoid(x) 的形式可以看作是一种自门控机制，允许网络动态调整信息流。
+Swish 在时间嵌入中的作用：
+a) 非线性引入：Swish 在线性变换之间引入非线性，增加了模型的表达能力。
+b) 梯度流：Swish 的平滑特性有助于梯度在网络中更好地流动，尤其是在处理时间这样的连续变量时。
+c) 信息保留：由于 Swish 在负值区域不会完全抑制信号，它可以在时间嵌入中保留更多的信息。
+d) 动态范围：Swish 可以产生比 ReLU 更大的动态范围，这对于捕捉时间步的细微差异可能很有帮助。
+'''
 class TimeEmbedding(nn.Module):
     def __init__(self, T, d_model, dim):
+        # d_model = 128 dim = 512 
         assert d_model % 2 == 0
         super().__init__()
         emb = torch.arange(0, d_model, step=2) / d_model * math.log(10000)
@@ -26,10 +50,10 @@ class TimeEmbedding(nn.Module):
         emb = emb.view(T, d_model)
 
         self.timembedding = nn.Sequential(
-            nn.Embedding.from_pretrained(emb),
-            nn.Linear(d_model, dim),
-            Swish(),
-            nn.Linear(dim, dim),
+            nn.Embedding.from_pretrained(emb),  # shape [T, 128]   128 = d_model, a lookup table when input is 3, then return row-4 actually contains 128 elements
+            nn.Linear(d_model, dim),# then linear
+            Swish(), # why swish 
+            nn.Linear(dim, dim),    
         )
         self.initialize()
 
@@ -165,9 +189,10 @@ class UNet(nn.Module):
         super().__init__()
         assert all([i < len(ch_mult) for i in attn]), 'attn index out of bound'
         tdim = ch * 4
+        # T: 1000 time step, ch :channel 128 tdim: 128 * 4 = 512 
         self.time_embedding = TimeEmbedding(T, ch, tdim)
 
-        self.head = nn.Conv2d(3, ch, kernel_size=3, stride=1, padding=1)
+        self.head = nn.Conv2d(3, ch, kernel_size=3, stride=1, padding=1)  # Conv2d(3, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))  what matter are OUPUT SHAPE and parameters numbers, refer tohttps://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
         self.downblocks = nn.ModuleList()
         chs = [ch]  # record output channel when dowmsample for upsample
         now_ch = ch
@@ -215,18 +240,19 @@ class UNet(nn.Module):
 
     def forward(self, x, t):
         # Timestep embedding
-        temb = self.time_embedding(t)
+        breakpoint()
+        temb = self.time_embedding(t)   # return shape a number
         # Downsampling
         h = self.head(x)
-        hs = [h]
-        for layer in self.downblocks:
+        hs = [h]   # hs store the h initially,
+        for layer in self.downblocks:  # len 11 
             h = layer(h, temb)
             hs.append(h)
         # Middle
-        for layer in self.middleblocks:
+        for layer in self.middleblocks: # 2
             h = layer(h, temb)
         # Upsampling
-        for layer in self.upblocks:
+        for layer in self.upblocks:  # 15 
             if isinstance(layer, ResBlock):
                 h = torch.cat([h, hs.pop()], dim=1)
             h = layer(h, temb)

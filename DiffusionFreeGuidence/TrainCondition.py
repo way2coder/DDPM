@@ -73,19 +73,20 @@ def train(modelConfig: Dict):
 
 
 def eval(modelConfig: Dict):
-    device = torch.device(modelConfig["device"])
+    device = torch.device(modelConfig["device"]) 
     # load model and evaluate
     with torch.no_grad():
-        step = int(modelConfig["batch_size"] // 10)
+        step = int(modelConfig["batch_size"] // 10) 
         labelList = []
         k = 0
-        for i in range(1, modelConfig["batch_size"] + 1):
+        for i in range(1, modelConfig["batch_size"] + 1): # label generation
             labelList.append(torch.ones(size=[1]).long() * k)
             if i % step == 0:
                 if k < 10 - 1:
                     k += 1
         labels = torch.cat(labelList, dim=0).long().to(device) + 1
         print("labels: ", labels)
+        # Load model
         model = UNet(T=modelConfig["T"], num_labels=10, ch=modelConfig["channel"], ch_mult=modelConfig["channel_mult"],
                      num_res_blocks=modelConfig["num_res_blocks"], dropout=modelConfig["dropout"]).to(device)
         ckpt = torch.load(os.path.join(
@@ -93,6 +94,7 @@ def eval(modelConfig: Dict):
         model.load_state_dict(ckpt)
         print("model load weight done.")
         model.eval()
+        # GaussianDiffusionSampler
         sampler = GaussianDiffusionSampler(
             model, modelConfig["beta_1"], modelConfig["beta_T"], modelConfig["T"], w=modelConfig["w"]).to(device)
         # Sampled from standard normal distribution

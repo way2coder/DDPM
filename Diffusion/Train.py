@@ -41,8 +41,7 @@ def train(modelConfig: Dict):
     warmUpScheduler = GradualWarmupScheduler(
         optimizer=optimizer, multiplier=modelConfig["multiplier"], warm_epoch=modelConfig["epoch"] // 10, after_scheduler=cosineScheduler)
     trainer = GaussianDiffusionTrainer(
-        net_model, modelConfig["beta_1"], modelConfig["beta_T"], modelConfig["T"]).to(device)
-
+        net_model, modelConfig["beta_1"], modelConfig["beta_T"], modelConfig["T"]).to(device) 
     # start training
     for e in range(modelConfig["epoch"]):
         with tqdm(dataloader, dynamic_ncols=True) as tqdmDataLoader:
